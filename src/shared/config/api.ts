@@ -1,0 +1,3 @@
+export const API_BASE_URL = 'https://wydokyegph.execute-api.eu-central-1.amazonaws.com';
+export const SSE_BASE_URL =
+  'https://vpjjdvoeej5izlqy3nnpllmyua0idsrp.lambda-url.eu-central-1.on.aws';

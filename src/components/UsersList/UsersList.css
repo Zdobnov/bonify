@@ -1,0 +1,26 @@
+.users {
+  border: 1px solid #dde1e6;
+  border-radius: 8px;
+  background: #fff;
+  padding: 18px;
+}
+
+.users__title {
+  margin-bottom: 16px;
+  font-size: 1rem;
+}
+
+.users__list {
+  display: grid;
+  gap: 6px;
+}
+
+.users__state {
+  margin-bottom: 0;
+  color: #5f6368;
+  line-height: 1.5;
+}
+
+.users__state--error {
+  color: #b3261e;
+}

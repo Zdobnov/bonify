@@ -1,0 +1,67 @@
+.reliability-overview__content {
+  display: grid;
+  gap: 16px;
+}
+
+.reliability-overview__score {
+  color: #202124;
+  font-size: 2.4rem;
+  line-height: 1;
+}
+
+.reliability-overview__band {
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 5px 9px;
+}
+
+.reliability-overview__band--low {
+  background: #fce8e6;
+  color: #b3261e;
+}
+
+.reliability-overview__band--medium {
+  background: #f8f1df;
+  color: #c18500;
+}
+
+.reliability-overview__band--high {
+  background: #e9f6ec;
+  color: #137333;
+}
+
+.reliability-overview__metrics {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.reliability-overview__metric {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid #eef0f2;
+  padding-top: 10px;
+}
+
+.reliability-overview__metric dt {
+  color: #5f6368;
+}
+
+.reliability-overview__metric dd {
+  margin: 0;
+  color: #202124;
+  font-weight: 700;
+  text-align: right;
+}
+
+.reliability-overview__drivers {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  color: #3c4043;
+  line-height: 1.45;
+}

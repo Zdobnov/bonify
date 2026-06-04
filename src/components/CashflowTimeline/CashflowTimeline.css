@@ -1,0 +1,29 @@
+.cashflow-timeline--pulse {
+  animation: cashflow-timeline-pulse 1s ease-out;
+}
+
+.cashflow-timeline__content {
+  display: grid;
+  gap: 14px;
+}
+
+.cashflow-timeline__summary {
+  margin-bottom: 0;
+  color: #5f6368;
+  line-height: 1.45;
+}
+
+.cashflow-timeline__chart {
+  width: 100%;
+  height: 300px;
+}
+
+@keyframes cashflow-timeline-pulse {
+  0% {
+    background: #e8f0fe;
+  }
+
+  100% {
+    background: #fff;
+  }
+}
