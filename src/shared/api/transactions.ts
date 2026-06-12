@@ -42,6 +42,12 @@ export type TransactionEvent = {
   transaction_id?: string;
 };
 
+export type TransactionStreamEvent = {
+  data: TransactionEvent;
+  event: TransactionEventType;
+  id: string | null;
+};
+
 export const getUserTransactions = async ({
   from,
   limit,

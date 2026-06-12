@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
-import type { TransactionEvent } from '../api/transactions';
+import type {
+  TransactionEventType,
+  TransactionStreamEvent,
+} from '../api/transactions';
 import { SSE_BASE_URL } from '../config/api';
 
 const TRANSACTION_EVENTS_POLL_INTERVAL_MS = 30_000; // 30s, polling delay
@@ -10,7 +13,7 @@ type LambdaProxySseResponse = {
 };
 
 type UseTransactionEventsParams = {
-  onEvent: (event: TransactionEvent) => void;
+  onEvent: (event: TransactionStreamEvent) => void;
   userId: string | null;
 };
 
@@ -18,18 +21,24 @@ const parseSseBody = (body: string) => {
   return body
     .split(/\n\n+/)
     .map((chunk) => {
-      const eventTypeLine = chunk
-        .split('\n')
-        .find((line) => line.startsWith('event: '));
-      const dataLine = chunk.split('\n').find((line) => line.startsWith('data: '));
+      const lines = chunk.split('\n');
+      const idLine = lines.find((line) => line.startsWith('id: '));
+      const eventTypeLine = lines.find((line) => line.startsWith('event: '));
+      const dataLines = lines.filter((line) => line.startsWith('data: '));
 
-      if (!eventTypeLine || !dataLine) {
+      if (!eventTypeLine || dataLines.length === 0) {
         return null;
       }
 
-      return JSON.parse(dataLine.replace('data: ', '')) as TransactionEvent;
+      const data = JSON.parse(dataLines.map((line) => line.replace('data: ', '')).join('\n'));
+
+      return {
+        data,
+        event: eventTypeLine.replace('event: ', '') as TransactionEventType,
+        id: idLine ? idLine.replace('id: ', '') : null,
+      };
     })
-    .filter((event): event is TransactionEvent => Boolean(event));
+    .filter((event): event is TransactionStreamEvent => Boolean(event));
 };
 
 const fetchLambdaProxySseEvents = async (url: string, signal: AbortSignal) => {

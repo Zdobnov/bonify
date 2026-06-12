@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { TransactionEvent, TransactionsResponse } from '../api/transactions';
+import type { TransactionStreamEvent, TransactionsResponse } from '../api/transactions';
 import {
   getCashflowTransactionsQueryKey,
   getTransactionExplorerQueryKey,
@@ -31,10 +31,12 @@ export const useTransactionEventHandler = ({
   const queryClient = useQueryClient();
 
   return useCallback(
-    (event: TransactionEvent) => {
+    (streamEvent: TransactionStreamEvent) => {
       if (!selectedUserId || !cashflowWindowFrom || !cashflowWindowTo) {
         return;
       }
+
+      const event = streamEvent.data;
 
       const cashflowQueryKey = getCashflowTransactionsQueryKey(
         selectedUserId,
