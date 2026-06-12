@@ -4,5 +4,6 @@
     "composite": false,
     "types": ["vitest"]
   },
-  "include": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+  "include": ["src/**/*.test.ts", "src/**/*.test.tsx"],
+  "exclude": []
 }

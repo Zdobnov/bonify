@@ -76,7 +76,10 @@ export const TransactionExplorer = ({
     enabled: Boolean(hasRequestedTransactions && selectedUserId && from && to),
   });
 
-  const transactions = transactionsQuery.data?.transactions ?? [];
+  const transactions = useMemo(
+    () => transactionsQuery.data?.transactions ?? [],
+    [transactionsQuery.data?.transactions],
+  );
   const availableCategories = useMemo(() => {
     return Array.from(
       new Set(
