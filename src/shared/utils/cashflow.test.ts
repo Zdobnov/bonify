@@ -54,4 +54,15 @@ describe('buildMonthlyCashflowData', () => {
       { balance: 10.01, month: 'Jan 2026' },
     ]);
   });
+
+  it('skips transactions with invalid dates', () => {
+    const transactions = [
+      createTransaction({ amount: 100, date: '2026-01-10', id: 'txn_001' }),
+      createTransaction({ amount: 999, date: 'not-a-date', id: 'txn_002' }),
+    ];
+
+    expect(buildMonthlyCashflowData(transactions, '2026-01-01', '2026-01-20')).toEqual([
+      { balance: 100, month: 'Jan 2026' },
+    ]);
+  });
 });

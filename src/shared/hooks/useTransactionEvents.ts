@@ -17,6 +17,14 @@ type UseTransactionEventsParams = {
   userId: string | null;
 };
 
+const isTransactionEventType = (value: string): value is TransactionEventType => {
+  return (
+    value === 'TRANSACTION_ADDED' ||
+    value === 'TRANSACTION_UPDATED' ||
+    value === 'TRANSACTION_DELETED'
+  );
+};
+
 const parseSseBody = (body: string) => {
   return body
     .split(/\n\n+/)
@@ -30,13 +38,27 @@ const parseSseBody = (body: string) => {
         return null;
       }
 
-      const data = JSON.parse(dataLines.map((line) => line.replace('data: ', '')).join('\n'));
+      const eventType = eventTypeLine.replace('event: ', '');
 
-      return {
-        data,
-        event: eventTypeLine.replace('event: ', '') as TransactionEventType,
-        id: idLine ? idLine.replace('id: ', '') : null,
-      };
+      if (!isTransactionEventType(eventType)) {
+        return null;
+      }
+
+      try {
+        const data = JSON.parse(dataLines.map((line) => line.replace('data: ', '')).join('\n'));
+
+        if (data?.type !== eventType) {
+          return null;
+        }
+
+        return {
+          data,
+          event: eventType,
+          id: idLine ? idLine.replace('id: ', '') : null,
+        };
+      } catch {
+        return null;
+      }
     })
     .filter((event): event is TransactionStreamEvent => Boolean(event));
 };
@@ -44,7 +66,14 @@ const parseSseBody = (body: string) => {
 const fetchLambdaProxySseEvents = async (url: string, signal: AbortSignal) => {
   const response = await fetch(url, { signal });
   const responseBody = await response.text();
-  const payload = JSON.parse(responseBody) as LambdaProxySseResponse;
+
+  let payload: LambdaProxySseResponse;
+
+  try {
+    payload = JSON.parse(responseBody) as LambdaProxySseResponse;
+  } catch {
+    return [];
+  }
 
   if (!payload.body) {
     return [];

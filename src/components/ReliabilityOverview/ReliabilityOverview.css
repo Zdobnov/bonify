@@ -31,6 +31,11 @@
   color: #137333;
 }
 
+.reliability-overview__band--unknown {
+  background: #eef0f2;
+  color: #5f6368;
+}
+
 .reliability-overview__metrics {
   display: grid;
   gap: 10px;

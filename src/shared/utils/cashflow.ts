@@ -15,6 +15,11 @@ export const buildMonthlyCashflowData = (
 
   transactions.forEach((transaction) => {
     const monthKey = getMonthKey(transaction.date);
+
+    if (!monthKey) {
+      return;
+    }
+
     balanceByMonth.set(monthKey, (balanceByMonth.get(monthKey) ?? 0) + transaction.amount);
   });
 
