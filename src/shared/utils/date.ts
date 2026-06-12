@@ -7,8 +7,17 @@ import {
   subMonths,
 } from 'date-fns';
 
-export const subtractMonthsFromDate = (date: string, months: number) =>
-  format(subMonths(parseISO(date), months), 'yyyy-MM-dd');
+const SCORING_WINDOW_MONTHS = 6;
+
+export const getScoringWindow = (to: string) => {
+  const endDate = parseISO(to);
+  const startDate = startOfMonth(subMonths(endDate, SCORING_WINDOW_MONTHS - 1));
+
+  return {
+    from: format(startDate, 'yyyy-MM-dd'),
+    to,
+  };
+};
 
 export const getMonthKey = (date: string) => format(parseISO(date), 'yyyy-MM');
 

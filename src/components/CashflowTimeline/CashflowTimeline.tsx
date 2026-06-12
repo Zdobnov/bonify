@@ -12,14 +12,13 @@ import {
 import { getUserTransactions } from '../../shared/api/transactions';
 import { getCashflowTransactionsQueryKey } from '../../shared/queryKeys/transactions';
 import {
+  getScoringWindow,
   getMonthKey,
   getMonthLabel,
   getMonthsInRange,
-  subtractMonthsFromDate,
 } from '../../shared/utils/date';
 import './CashflowTimeline.css';
 
-const CASHFLOW_WINDOW_MONTHS = 6;
 const AMOUNT_FORMATTER = new Intl.NumberFormat('en-US', {
   currency: 'EUR',
   maximumFractionDigits: 0,
@@ -34,8 +33,9 @@ type CashflowTimelineProps = {
 
 export const CashflowTimeline = ({ from, pulseKey, selectedUserId }: CashflowTimelineProps) => {
   const [isPulseActive, setIsPulseActive] = useState(false);
-  const cashflowWindowFrom = from ? subtractMonthsFromDate(from, CASHFLOW_WINDOW_MONTHS) : '';
-  const cashflowWindowTo = from;
+  const cashflowWindow = from ? getScoringWindow(from) : null;
+  const cashflowWindowFrom = cashflowWindow?.from ?? '';
+  const cashflowWindowTo = cashflowWindow?.to ?? '';
   const transactionsQuery = useQuery({
     queryKey: getCashflowTransactionsQueryKey(
       selectedUserId,

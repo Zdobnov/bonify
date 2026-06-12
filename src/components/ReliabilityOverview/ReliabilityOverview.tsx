@@ -1,7 +1,7 @@
 import type { QueryStatus } from '@tanstack/react-query';
 
 import type { ReliabilityResponse } from '../../shared/api/reliability';
-import { subtractMonthsFromDate } from '../../shared/utils/date';
+import { getScoringWindow } from '../../shared/utils/date';
 
 import './ReliabilityOverview.css';
 
@@ -11,7 +11,7 @@ type ReliabilityOverviewProps = {
 };
 
 export const ReliabilityOverview = ({ reliability, status }: ReliabilityOverviewProps) => {
-  const scoringWindowFrom = reliability ? subtractMonthsFromDate(reliability.from, 6) : '';
+  const scoringWindow = reliability ? getScoringWindow(reliability.from) : null;
   const scoreBandClassName = reliability
     ? `reliability-overview__band reliability-overview__band--${reliability.score_band.toLowerCase()}`
     : 'reliability-overview__band';
@@ -40,7 +40,7 @@ export const ReliabilityOverview = ({ reliability, status }: ReliabilityOverview
           <section>
             <h3 className="dashboard__section-title">Scoring window</h3>
             <p className="dashboard__section-text">
-              6 months before {reliability.from} (from {scoringWindowFrom} to {reliability.from})
+              6 months: from {scoringWindow?.from} to {scoringWindow?.to}
             </p>
           </section>
           <section>

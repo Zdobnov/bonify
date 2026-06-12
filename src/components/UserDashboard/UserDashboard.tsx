@@ -11,10 +11,8 @@ import { getUserReliability } from '../../shared/api/reliability';
 import { QUERY_CACHE_TIME } from '../../shared/config/query';
 import { useTransactionEventHandler } from '../../shared/hooks/useTransactionEventHandler';
 import { useTransactionEvents } from '../../shared/hooks/useTransactionEvents';
-import { subtractMonthsFromDate } from '../../shared/utils/date';
+import { getScoringWindow } from '../../shared/utils/date';
 import './UserDashboard.css';
-
-const CASHFLOW_WINDOW_MONTHS = 6;
 
 type UserDashboardProps = {
   from: string;
@@ -27,8 +25,9 @@ export const UserDashboard = ({ from, selectedUserId, to }: UserDashboardProps) 
   const [transactionExplorerUpdateSummary, setTransactionExplorerUpdateSummary] =
     useState<TransactionExplorerUpdateSummary | null>(null);
   const transactionExplorerSummaryTimeoutRef = useRef<number | null>(null);
-  const cashflowWindowFrom = from ? subtractMonthsFromDate(from, CASHFLOW_WINDOW_MONTHS) : '';
-  const cashflowWindowTo = from;
+  const cashflowWindow = from ? getScoringWindow(from) : null;
+  const cashflowWindowFrom = cashflowWindow?.from ?? '';
+  const cashflowWindowTo = cashflowWindow?.to ?? '';
   const showTransactionExplorerUpdateSummary = useCallback(
     (type: 'added' | 'deleted' | 'updated') => {
       setTransactionExplorerUpdateSummary((currentSummary) => ({
