@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { getUserTransactions, type Transaction } from '../../shared/api/transactions';
@@ -63,6 +63,7 @@ export const TransactionExplorer = ({
   const [amountFilter, setAmountFilter] = useState<AmountFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORY_FILTER);
   const [merchantSearch, setMerchantSearch] = useState('');
+  const deferredMerchantSearch = useDeferredValue(merchantSearch);
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const transactionsQuery = useQuery({
     queryKey: getTransactionExplorerQueryKey(selectedUserId, from, to),
@@ -86,7 +87,7 @@ export const TransactionExplorer = ({
     ).sort((firstCategory, secondCategory) => firstCategory.localeCompare(secondCategory));
   }, [transactions]);
   const filteredTransactions = useMemo(() => {
-    const normalizedMerchantSearch = merchantSearch.trim().toLowerCase();
+    const normalizedMerchantSearch = deferredMerchantSearch.trim().toLowerCase();
 
     return transactions.filter((transaction) => {
       const matchesAmount =
@@ -102,7 +103,7 @@ export const TransactionExplorer = ({
 
       return matchesAmount && matchesCategory && matchesMerchant;
     });
-  }, [amountFilter, categoryFilter, merchantSearch, transactions]);
+  }, [amountFilter, categoryFilter, deferredMerchantSearch, transactions]);
   const sortedTransactions = useMemo(() => {
     return [...filteredTransactions].sort((firstTransaction, secondTransaction) => {
       const firstValue = firstTransaction[sortKey];
