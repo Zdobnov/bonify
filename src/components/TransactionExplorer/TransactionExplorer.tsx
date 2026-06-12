@@ -7,7 +7,9 @@ import './TransactionExplorer.css';
 
 type SortKey = 'date' | 'merchant_name' | 'amount' | 'type';
 type SortDirection = 'asc' | 'desc';
-type TypeFilter = 'all' | 'debit' | 'credit';
+type AmountFilter = 'all' | 'positive' | 'negative';
+
+const ALL_CATEGORY_FILTER = 'all';
 
 type TransactionExplorerProps = {
   from: string;
@@ -46,7 +48,7 @@ const getSortIndicator = (columnKey: SortKey, sortKey: SortKey, sortDirection: S
     return null;
   }
 
-  return sortDirection === 'asc' ? '↑' : '↓';
+  return sortDirection;
 };
 
 export const TransactionExplorer = ({
@@ -58,7 +60,8 @@ export const TransactionExplorer = ({
   const [hasRequestedTransactions, setHasRequestedTransactions] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [amountFilter, setAmountFilter] = useState<AmountFilter>('all');
+  const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORY_FILTER);
   const [merchantSearch, setMerchantSearch] = useState('');
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const transactionsQuery = useQuery({
@@ -73,18 +76,33 @@ export const TransactionExplorer = ({
   });
 
   const transactions = transactionsQuery.data?.transactions ?? [];
+  const availableCategories = useMemo(() => {
+    return Array.from(
+      new Set(
+        transactions
+          .map((transaction) => transaction.merchant_category_code)
+          .filter(Boolean),
+      ),
+    ).sort((firstCategory, secondCategory) => firstCategory.localeCompare(secondCategory));
+  }, [transactions]);
   const filteredTransactions = useMemo(() => {
     const normalizedMerchantSearch = merchantSearch.trim().toLowerCase();
 
     return transactions.filter((transaction) => {
-      const matchesType = typeFilter === 'all' || transaction.type === typeFilter;
+      const matchesAmount =
+        amountFilter === 'all' ||
+        (amountFilter === 'positive' && transaction.amount >= 0) ||
+        (amountFilter === 'negative' && transaction.amount < 0);
+      const matchesCategory =
+        categoryFilter === ALL_CATEGORY_FILTER ||
+        transaction.merchant_category_code === categoryFilter;
       const matchesMerchant =
         !normalizedMerchantSearch ||
         transaction.merchant_name.toLowerCase().includes(normalizedMerchantSearch);
 
-      return matchesType && matchesMerchant;
+      return matchesAmount && matchesCategory && matchesMerchant;
     });
-  }, [merchantSearch, transactions, typeFilter]);
+  }, [amountFilter, categoryFilter, merchantSearch, transactions]);
   const sortedTransactions = useMemo(() => {
     return [...filteredTransactions].sort((firstTransaction, secondTransaction) => {
       const firstValue = firstTransaction[sortKey];
@@ -150,39 +168,44 @@ export const TransactionExplorer = ({
       </div>
       <div className="transaction-explorer__filters">
         <fieldset className="transaction-explorer__filter-group">
-          Operation:{' '}
-          {(['all', 'debit', 'credit'] as TypeFilter[]).map((filterValue) => (
+          Amount:{' '}
+          {(['all', 'negative', 'positive'] as AmountFilter[]).map((filterValue) => (
             <label className="transaction-explorer__checkbox" key={filterValue}>
               <input
-                checked={typeFilter === filterValue}
-                onChange={() => setTypeFilter(filterValue)}
+                checked={amountFilter === filterValue}
+                onChange={() => setAmountFilter(filterValue)}
                 type="checkbox"
-                name={`type-filter-${filterValue.toLowerCase()}`}
+                name={`amount-filter-${filterValue.toLowerCase()}`}
               />
               <span
                 className={
-                  filterValue === 'credit'
-                    ? 'transaction-explorer__filter-label transaction-explorer__filter-label--credit'
-                    : filterValue === 'debit'
-                      ? 'transaction-explorer__filter-label transaction-explorer__filter-label--debit'
+                  filterValue === 'positive'
+                    ? 'transaction-explorer__filter-label transaction-explorer__filter-label--positive'
+                    : filterValue === 'negative'
+                      ? 'transaction-explorer__filter-label transaction-explorer__filter-label--negative'
                       : 'transaction-explorer__filter-label'
                 }
               >
                 {filterValue}
-                {filterValue === 'debit' && (
-                  <span className="transaction-explorer__filter-arrow transaction-explorer__filter-arrow--debit">
-                    ↘
-                  </span>
-                )}
-                {filterValue === 'credit' && (
-                  <span className="transaction-explorer__filter-arrow transaction-explorer__filter-arrow--credit">
-                    ↗
-                  </span>
-                )}
               </span>
             </label>
           ))}
         </fieldset>
+        <label className="transaction-explorer__category">
+          <span>Category</span>
+          <select
+            name="category-filter"
+            onChange={(event) => setCategoryFilter(event.target.value)}
+            value={categoryFilter}
+          >
+            <option value={ALL_CATEGORY_FILTER}>All</option>
+            {availableCategories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </label>
         {updateSummary && (
           <div
             className="transaction-explorer__update-summary"

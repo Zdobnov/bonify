@@ -88,7 +88,6 @@
 .transaction-explorer__filters {
   display: flex;
   gap: 14px;
-  justify-content: space-between;
   align-items: center;
   padding: 16px 0;
   border-top: 1px solid #cccccc;
@@ -125,15 +124,11 @@
   text-transform: capitalize;
 }
 
-.transaction-explorer__filter-arrow {
-  font-weight: 700;
-}
-
-.transaction-explorer__filter-arrow--credit {
+.transaction-explorer__filter-label--positive {
   color: #137333;
 }
 
-.transaction-explorer__filter-arrow--debit {
+.transaction-explorer__filter-label--negative {
   color: #b3261e;
 }
 
@@ -148,6 +143,21 @@
   animation: transaction-explorer-update-summary 3s ease-out forwards;
 }
 
+.transaction-explorer__category {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 auto 0 40px;
+}
+
+.transaction-explorer__category select {
+  border: 1px solid #d4d7dd;
+  border-radius: 6px;
+  background: #fff;
+  color: #202124;
+  padding: 7px 9px;
+}
+
 .transaction-explorer__search {
   display: grid;
   gap: 6px;
@@ -160,6 +170,7 @@
   border: 1px solid #d4d7dd;
   border-radius: 6px;
   padding: 8px 10px;
+  margin: 0 0 0 auto;
 }
 
 .transaction-explorer__load-button {
