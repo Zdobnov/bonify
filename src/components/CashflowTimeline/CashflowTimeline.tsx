@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   CartesianGrid,
@@ -11,12 +11,8 @@ import {
 } from 'recharts';
 import { getUserTransactions } from '../../shared/api/transactions';
 import { getCashflowTransactionsQueryKey } from '../../shared/queryKeys/transactions';
-import {
-  getScoringWindow,
-  getMonthKey,
-  getMonthLabel,
-  getMonthsInRange,
-} from '../../shared/utils/date';
+import { buildMonthlyCashflowData } from '../../shared/utils/cashflow';
+import { getScoringWindow } from '../../shared/utils/date';
 import './CashflowTimeline.css';
 
 const AMOUNT_FORMATTER = new Intl.NumberFormat('en-US', {
@@ -50,19 +46,17 @@ export const CashflowTimeline = ({ from, pulseKey, selectedUserId }: CashflowTim
     }),
     enabled: Boolean(selectedUserId && cashflowWindowFrom && cashflowWindowTo),
   });
-  const chartData =
-    transactionsQuery.data && cashflowWindowFrom && cashflowWindowTo
-      ? getMonthsInRange(cashflowWindowFrom, cashflowWindowTo).map((monthKey) => {
-          const balance = transactionsQuery.data.transactions
-            .filter((transaction) => getMonthKey(transaction.date) === monthKey)
-            .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const chartData = useMemo(() => {
+    if (!transactionsQuery.data || !cashflowWindowFrom || !cashflowWindowTo) {
+      return [];
+    }
 
-          return {
-            balance: Number(balance.toFixed(2)),
-            month: getMonthLabel(monthKey),
-          };
-        })
-      : [];
+    return buildMonthlyCashflowData(
+      transactionsQuery.data.transactions,
+      cashflowWindowFrom,
+      cashflowWindowTo,
+    );
+  }, [cashflowWindowFrom, cashflowWindowTo, transactionsQuery.data]);
 
   useEffect(() => {
     if (pulseKey === 0) {
