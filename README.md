@@ -1,193 +1,182 @@
-# Frontend Challenge — Reliability Index Explorer
+# Frontend Challenge - Reliability Index Explorer
 
-# SOLUTION
+## Setup
 
-## Used packages
+```bash
+npm install
+npm run dev
+```
 
-- @tanstack/react-query: Hooks for fetching, caching and updating asynchronous data in React
-- @tanstack/react-virtual: Headless UI for virtualizing scrollable elements in React
-- date-fns: Date utility library
-- recharts: React charts
+The Vite dev server runs on:
 
-## SSE transport fallback
+```bash
+http://localhost:3001
+```
 
-The OpenAPI document describes `/api/users/{userId}/transaction-events` as a
-standard `text/event-stream` endpoint. In practice, the endpoint returns a JSON
-wrapper containing the SSE payload as a string, while the actual HTTP response
-uses `Content-Type: application/octet-stream`. Because the browser `EventSource`
-API requires a real `text/event-stream` response, native SSE cannot be used.
+Quality checks:
 
-As a workaround, transaction updates are refreshed with periodic polling. The
-response wrapper is parsed, the embedded SSE-formatted payload is extracted, and
-the resulting transaction events are passed through the same update pipeline.
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+## Used Packages
+
+- `@tanstack/react-query`: fetching, caching, and updating server state.
+- `@tanstack/react-virtual`: virtualized transaction rows for large datasets.
+- `date-fns`: date parsing, formatting, and scoring-window calculations.
+- `recharts`: cashflow timeline chart.
+- `vitest`: unit tests for critical data transformation logic.
+- `eslint`: static analysis for TypeScript and React hook correctness.
+
+## Architecture Overview
+
+The application is structured around feature components and shared data utilities:
+
+- `App` owns API discovery, global date inputs, and selected user state.
+- `UsersList` renders users from the discovery endpoint.
+- `UserDashboard` orchestrates the selected user's dashboard sections.
+- `ReliabilityOverview` and `ScoreBreakdown` render score details and explanations.
+- `CashflowTimeline` fetches scoring-window transactions and renders monthly cashflow.
+- `TransactionExplorer` lazy-loads transactions and provides search, category filtering, amount filtering, sorting, and virtualization.
+- `shared/api` contains typed API functions and lightweight response normalization.
+- `shared/hooks` contains live-update polling and transaction-event cache handling.
+- `shared/utils` contains pure, tested transformation logic for dates, cashflow aggregation, and transaction event application.
+
+## Data Fetching and Caching
+
+React Query is used for server-state ownership:
+
+- API discovery is cached because available users and data range are stable during a session.
+- Reliability data is keyed by `userId` and `from`.
+- Cashflow transactions are keyed by `userId` and the computed 6-month scoring window.
+- Transaction Explorer data is keyed by `userId`, `from`, and `to`.
+
+Transaction event updates are applied directly to the relevant React Query caches. This avoids unnecessary refetches when an update can be applied deterministically.
+
+## Scoring Window Assumption
+
+The OpenAPI document defines the reliability scoring window as 6 calendar months ending at the `from` date.
+
+Example from the API documentation:
+
+```txt
+from=2026-02-20 -> 2025-09-01 to 2026-02-20
+```
+
+The application uses a single `getScoringWindow` helper for Reliability Overview, Cashflow Timeline, and transaction event date checks. This avoids having different sections interpret the scoring window differently.
+
+## SSE Transport Fallback
+
+The OpenAPI document describes `/api/users/{userId}/transaction-events` as a standard `text/event-stream` endpoint. In practice, the endpoint returns a JSON wrapper containing the SSE payload as a string, while the actual HTTP response uses `Content-Type: application/octet-stream`. Because the browser `EventSource` API requires a real `text/event-stream` response, native SSE cannot be used.
+
+As a workaround, transaction updates are fetched with a polling-based fallback. The response wrapper is parsed, the embedded SSE-formatted payload is extracted, and the resulting transaction events are passed through the same update pipeline.
+
+The parser reads:
+
+- `id`
+- `event`
+- `data`
+
+The OpenAPI document says `Last-Event-ID` is accepted but not used for replay, so the frontend does not rely on backend replay. Instead, event handling is designed to be idempotent.
+
+## Correctness Strategy
+
+Live transaction updates are applied through a pure reducer:
+
+- `TRANSACTION_ADDED` performs an upsert and does not duplicate an existing transaction id.
+- `TRANSACTION_UPDATED` updates an existing transaction, or upserts a missing one as an update.
+- `TRANSACTION_DELETED` removes an existing transaction and is a no-op if the id is missing.
+- `total` changes only when the transaction list actually changes.
+- Events for another user are ignored.
+- Events outside the active date window are ignored for that cache.
+- Repeated events are deduplicated by SSE `id` when available, with a transaction-based fallback key.
+
+This is important because the stream may reconnect, replay scripted events, or return the same transaction more than once.
+
+## Transaction Explorer Decisions
+
+The Transaction Explorer fetches the full transaction set for the selected date range and uses virtualization to keep DOM size small.
+
+The API documentation states:
+
+- transaction records are returned in arbitrary order;
+- server-side category filtering is not available;
+- unpaginated responses can contain 10,000+ records.
+
+Given that, the UI performs client-side sorting and filtering, while `@tanstack/react-virtual` limits rendered rows.
+
+Filters follow the API schema:
+
+- category filtering uses `merchant_category_code`;
+- positive/negative filtering uses the sign of `amount`;
+- `type` remains visible as a column, but is treated as redundant with amount sign as documented by the API.
+
+Merchant search uses `useDeferredValue` so typing remains responsive while large lists are filtered and sorted.
+
+## Cashflow Timeline Performance
+
+The initial timeline implementation calculated each month by repeatedly filtering the full transaction list. That creates unnecessary repeated work.
+
+The current implementation aggregates transactions in one pass:
+
+```txt
+transactions -> Map<month, balance> -> chart points
+```
+
+Missing months are kept as zero-balance points so the chart always represents the full scoring window.
+
+## Edge Case Handling
+
+The API layer performs lightweight normalization instead of assuming perfect payloads:
+
+- invalid transaction records are dropped;
+- missing merchant names fall back to `Unknown merchant`;
+- missing currencies fall back to `EUR`;
+- invalid dates are ignored by date-range and cashflow helpers;
+- unknown reliability score bands map to `UNKNOWN`;
+- malformed embedded SSE chunks are ignored instead of crashing the update loop.
+
+This keeps the UI resilient while avoiding a large schema-validation dependency for this assignment.
+
+## Tests and Tooling
+
+Automated tests currently cover:
+
+- scoring window calculation;
+- invalid and inverted date ranges;
+- idempotent transaction event reducer behavior;
+- event deduplication keys;
+- cashflow monthly aggregation;
+- zero-balance months;
+- invalid transaction dates in cashflow aggregation.
+
+Tooling:
+
+- `npm run lint` runs ESLint with TypeScript and React hooks rules.
+- `npm run typecheck` checks app and test TypeScript.
+- `npm test` runs Vitest.
+- `npm run build` validates production bundling.
+
+## Known Limitations and Trade-offs
+
+- Native `EventSource` cannot be used with the current live-update endpoint because the actual HTTP response content type is not `text/event-stream`.
+- Backend replay cannot be relied on because `Last-Event-ID` is documented as accepted but not used for replay.
+- Fetching all transactions plus virtualization is acceptable for this assignment and 10,000+ rows, but 100,000+ records would need backend pagination/search/filtering or an indexed client-side worker strategy.
+- Client-side category filtering is required because the API does not provide category filtering.
+- Runtime validation is intentionally lightweight. A production system could use a schema library such as Zod for stricter API boundary validation.
+- The chart currently assumes display currency formatting in EUR.
+- The production bundle still emits a Vite large-chunk warning, mainly due to charting and data libraries. A production iteration should add route/component-level code splitting or manual chunks.
+- `npm install` currently reports dependency audit findings. These should be triaged separately because automatic forced fixes may introduce breaking dependency changes.
 
 ## Possible Improvements
 
-- use CSS variables for repeated values like colors, spacing, typography, etc.;
-- test real SSE behavior;
-- split TransactionExplorer into smaller components: filters, toolbar, table header, virtualized rows;
-- move transaction formatting/sorting helpers from component body into shared utils and actually reuse them;
-- improve loading/empty/error states per dashboard section with consistent UI;
-- add request/error observability;
-- add tests;
-
-# TASK
-
-## Context
-
-Your team is building a thin-file credit decision tool. Many users have limited or no traditional credit history. To evaluate them, our backend computes a **Reliability Index (0–100)** using bank transaction data.
-
-This internal tool is used by risk analysts and product teams to:
-- understand how a score was computed
-- inspect underlying transaction patterns
-- identify anomalies in financial behavior
-- validate that the scoring system behaves correctly
-
-The tool must handle large transaction datasets and complex scoring signals while remaining clear, explainable, and easy to inspect.
-
-Your task is to design and implement a frontend application that visualizes and explains the Reliability Index.
-
-**Timebox:** 4 hours. We care more about engineering decisions and structure than UI polish. If you cannot complete everything, focus on core functionality and architecture.
-
-**Tech stack:**
-- Preferred: React + TypeScript
-- Allowed: React Native, Vite, any state management or charting libraries
-
-Please document the libraries you choose and why.
-
----
-
-## API
-
-```bash
-API_BASE_URL==https://wydokyegph.execute-api.eu-central-1.amazonaws.com/
-```
-
-```bash
-SSE_BASE_URL==https://vpjjdvoeej5izlqy3nnpllmyua0idsrp.lambda-url.eu-central-1.on.aws/
-```
-
-The service is split across two hosts:
-
-| Purpose | Base URL |
-| --- | --- |
-| REST (reliability score, transactions, discovery) | `{{API_BASE_URL}}` |
-| Server-Sent Events (live transaction updates) | `{{SSE_BASE_URL}}` |
-
-### Discovering the API
-
-Use the discovery endpoint on the REST host to explore available users and endpoints:
-
-```bash
-curl "{{API_BASE_URL}}/"
-```
-
-The full API specification is available as an OpenAPI 3.0 document:
-
-`{{API_BASE_URL}}/openapi.yaml`
-
----
-
-## What to Build
-
-### A) Reliability Overview
-
-Fetch and display the reliability score for a user. The dashboard should display:
-- Reliability score
-- Score band
-- Scoring window
-- Key metrics
-- Score drivers
-
-### B) Score Breakdown Visualization
-
-Visualize the four scoring signals:
-- Income Regularity
-- Income Coverage Ratio
-- Essential Payments Consistency
-- Resilience Adjustments
-
-The UI should make it clear how the score was derived.
-
-### C) Transaction Explorer
-
-Analysts need to inspect the transactions used in scoring. Build a Transaction Explorer that supports:
-- Sorting
-- Filtering by category
-- Filtering by positive / negative transactions
-- Search by merchant
-- Pagination or virtualization
-
-Transaction responses may contain out-of-order records. The UI should remain usable even with thousands of transactions.
-
-### D) Cashflow Timeline
-
-Display a monthly cashflow view for the scoring window. You can choose a suitable visual representation — the goal is to help analysts understand financial stability trends.
-
-### E) Score Explanation Panel
-
-Provide a clear explanation of the score drivers — positive signals and risk signals. The explanation should be easy to understand for non-technical users.
-
-### F) Data States
-
-Your application should correctly handle:
-- Loading states
-- Empty states
-- API errors
-
-### G) Large Datasets
-
-Transaction datasets may contain thousands of records. The transaction explorer should remain responsive, usable, and performant. Your solution should demonstrate how the UI scales when working with large collections of data.
-
-### H) Streaming Transaction Updates
-
-The system emits transaction events over Server-Sent Events at:
-
-```
-GET {{SSE_BASE_URL}}/api/users/{userId}/transaction-events
-```
-
-The event names (`TRANSACTION_ADDED`, `TRANSACTION_UPDATED`, `TRANSACTION_DELETED`) and payload shapes are in the OpenAPI document under that path. Your solution should update:
-- Transaction lists
-- Filters
-- Charts
-- Derived views
-
-without breaking UI state.
-
----
-
-## Deliverables
-
-1. **Working frontend application**
-2. **README** — setup instructions, assumptions, trade-offs, limitations
-3. **Architecture notes** — how you structured the frontend, state management decisions, data fetching strategy, component design approach
-4. **At least one diagram** — component architecture, data flow, or state management
-5. **AI usage disclosure** — if AI tools were used, explain where
-
----
-
-## Discussion Topics
-
-The following topics are **not required to be implemented** as part of the assignment. Please include your thoughts in the README.
-
-We will explore them during the **discussion interview** to understand your thinking, trade-offs, and system design approach.
-
-- **API Design & Evolution** — How would your frontend handle evolving or breaking API contracts? How would you support adding new scoring signals over time?
-- **Data Ownership & Boundaries** — What responsibilities belong in the frontend vs backend? What would you compute on each side?
-- **Data Consistency & Correctness** — How would you ensure correctness when transactions arrive out of order, partial data is loaded, or updates happen frequently?
-- **Scalability** — How would your solution evolve for 100K+ transactions or high-frequency updates?
-- **Real-Time Updates** — How would you design for continuous streaming updates while maintaining UI consistency?
-- **Caching & Performance** — What caching strategy would you use? How would you handle cache invalidation?
-- **Incident Thinking** — If the UI becomes slow or incorrect in production, how would you debug it?
-
----
-
-## What We Value
-
-- Clean, well-structured frontend architecture
-- Thoughtful component design and data handling
-- Performance awareness with large datasets
-- Clear documentation of decisions and trade-offs
-
-Use of AI is explicitly permitted. Please document where and how you used it.
+- Split `TransactionExplorer` into smaller components: filters, toolbar, table header, virtualized rows.
+- Move remaining formatting/sorting helpers from component body into shared utilities.
+- Add request/error observability and structured logging.
+- Add stricter runtime API validation.
+- Add code splitting to reduce the main JavaScript chunk size.
+- Add component tests for Transaction Explorer UI behavior.
+- Add an explicit data anomaly indicator when `type` and `amount` sign disagree.
